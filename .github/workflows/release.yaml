@@ -1,0 +1,45 @@
+---
+name: Release and update Homebrew formula
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
+      - name: Get latest tag
+        id: get_latest_tag
+        run: echo ::set-output name=latest_tag::$(git describe --tags --abbrev=0)
+      - name: Update formula
+        run: |
+          sed -i "" "s/version \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version \"${{ steps.get_latest_tag.outputs.latest_tag }}\"/" yubikey.rb
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add yubikey.rb
+          git commit -m "Bump version to ${{ steps.get_latest_tag.outputs.latest_tag }}"
+          git push
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: yubiinit.rb
+          asset_name: yubiinit.rb
+          asset_content_type: application/octet-stream
+

@@ -1,0 +1,32 @@
+---
+name: Build Homebrew Package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: macOS-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Homebrew
+        run: |
+          sudo mkdir -p /usr/local/Homebrew
+          sudo chown -R $(whoami) /usr/local/Homebrew
+          curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C /usr/local/Homebrew
+          echo 'export PATH="/usr/local/Homebrew/bin:$PATH"' >> $HOME/.bash_profile
+          source $HOME/.bash_profile
+      - name: Build package
+        run: |
+          brew update
+          brew install formulae/brew-cask
+          brew install --build-bottle ./yubiinit.rb
+          brew bottle --json --root-url=https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/ --force-core-tap-usage ./yubiinit.rb
+      - name: Upload package
+        uses: actions/upload-artifact@v2
+        with:
+          name: yubiinit-bottle
+          path: yubiinit--*.bottle.json
+
